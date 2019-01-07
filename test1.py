@@ -1,6 +1,8 @@
 import serial
 import numpy
+from sklearn import metrics
 from sklearn.naive_bayes import GaussianNB
+from sklearn.model_selection import cross_val_score
 
 
 class EmgModel:
@@ -71,6 +73,9 @@ class EmgModel:
         train_target = all_target[0::2]
         predict_data = params_data[1::2]
         predict_target = all_target[1::2]
+        # score = cross_val_score(self.model, train_data, train_target, cv=5, scoring='accuracy')
+        # print(score)
+        # print(score.mean())
         # 模型训练
         self.model.fit(train_data, train_target)
         # 模型预测
@@ -79,6 +84,13 @@ class EmgModel:
         for i in range(len(y)):
             if predict_target[i] == y[i]:
                 num += 1
+
+        cm = metrics.confusion_matrix(y, predict_target)
+        print("混淆矩阵")
+        print(cm)
+        print("分类报告")
+        cr = metrics.classification_report(y, predict_target)
+        print(cr)
         print("准确率：%s %%" % ((num / len(predict_target)) * 100))
 
     def save_data(self, filename, data):
