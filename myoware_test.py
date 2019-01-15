@@ -8,51 +8,59 @@ from sklearn.model_selection import cross_val_score
 class EmgModel:
     def __init__(self, labels):
         self.model = GaussianNB()
-        # self.serial = serial.Serial('COM5', 9600)
         self.labels = labels
+        self.serial = None
 
     def collect_signal(self, serial_data):
         try:
             value = str(self.serial.readline())
             value = value.replace("b", "").replace("\\r\\n", "").replace("\'", "")
-            value = float(value.split(",")[1])
-            print(value)
+            value0 = float(value.split(",")[1])
+            value1 = float(value.split(",")[2])
+            print([value0, value1])
         except IndexError:
             print("Index Error")
             return
-        serial_data.append(value)
+        serial_data.append([value0, value1])
 
     def get_wave(self, data):
-        theta = 75
+        theta = 100
         start = 0
         end = 0
         result = []
         for i in range(len(data) - 1):
-            if data[i] < theta < data[i+1]:
+            if sum(data[i]) < theta < sum(data[i+1]):
                 start = i
-            if data[i] > theta > data[i+1]:
+            if sum(data[i]) > theta > sum(data[i+1]):
                 end = i
                 if end - start > 10:
                     result.append(data[start:end:1])
         return result
 
-    def get_params(self, data):
-        # 平均绝对值
-        MAV = sum([abs(x) for x in data]) / len(data)
-        # 归一化处理
-        data = [(x - sum(data)/len(data)) / (max(data) - min(data)) for x in data]
-        # 过零点数
-        ZC = 0
-        # 波形长度
-        WL = len(data)
-        # 斜率变化数
-        SSC = 0
-        for i in range(len(data) - 1):
-            if data[i] * data[i+1] < 0:
-                ZC += 1
-            if i > 0 and (data[i-1] < data[i] < data[i+1] or data[i+1] < data[i] < data[i-1]):
-                SSC += 1
-        params = [MAV, ZC, WL, SSC]
+    def get_params(self, dataArr):
+        params = list()
+        arr = list();
+        for i in range(len(dataArr[0])):
+            arr.append([x[i] for x in dataArr])
+        for data in arr:
+            if max(data) == min(data):
+                return None
+            # 平均绝对值
+            MAV = sum([abs(x) for x in data]) / len(data)
+            # 归一化处理
+            data = [(x - sum(data)/len(data)) / (max(data) - min(data)) for x in data]
+            # 过零点数
+            ZC = 0
+            # 波形长度
+            WL = len(data)
+            # 斜率变化数
+            SSC = 0
+            for i in range(len(data) - 1):
+                if data[i] * data[i+1] < 0:
+                    ZC += 1
+                if i > 0 and (data[i-1] < data[i] < data[i+1] or data[i+1] < data[i] < data[i-1]):
+                    SSC += 1
+            params.extend([MAV, ZC, WL, SSC])
         return params
 
     def predict(self):
@@ -66,8 +74,13 @@ class EmgModel:
             all_target += target
         # 提取特征值
         params_data = list()
-        for row in all_data:
-            params_data.append(self.get_params(row))
+        for i in range(len(all_data)):
+            row = all_data[i]
+            params = self.get_params(row)
+            if params is None:
+                all_target.pop(i)
+            else:
+                params_data.append(params)
         # 训练数据和测试数据分离
         train_data = params_data[0::2]
         train_target = all_target[0::2]
@@ -104,11 +117,14 @@ class EmgModel:
         f = open(filename, 'r')
         data = list()
         for line in f.readlines():
-            data.append(float(line))
+            row = line.replace('\n', '').replace("[", "").replace("]", "").split(",")
+            row = [float(x) for x in row]
+            data.append(row)
         f.close()
         return data
 
     def collect_data(self):
+        self.serial = serial.Serial('COM5', 9600)
         print("收集训练数据")
         for pose in self.labels:
             input("Action %s,按回车开始" % pose)
