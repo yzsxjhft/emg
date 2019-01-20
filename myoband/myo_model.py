@@ -9,22 +9,9 @@ class EmgModel:
     def __init__(self, labels):
         self.model = GaussianNB()
         self.labels = labels
-        self.serial = None
-
-    def collect_signal(self, serial_data):
-        try:
-            value = str(self.serial.readline())
-            value = value.replace("b", "").replace("\\r\\n", "").replace("\'", "")
-            value0 = float(value.split(",")[1])
-            value1 = float(value.split(",")[2])
-            print([value0, value1])
-        except IndexError:
-            print("Index Error")
-            return
-        serial_data.append([value0, value1])
 
     def get_wave(self, data):
-        theta = 100
+        theta = 500
         start = 0
         end = 0
         result = []
@@ -39,7 +26,7 @@ class EmgModel:
 
     def get_params(self, dataArr):
         params = list()
-        arr = list();
+        arr = list()
         for i in range(len(dataArr[0])):
             arr.append([x[i] for x in dataArr])
         for data in arr:
@@ -106,36 +93,18 @@ class EmgModel:
         print(cr)
         print("准确率：%s %%" % ((num / len(predict_target)) * 100))
 
-    def save_data(self, filename, data):
-        f = open(filename, 'w+')
-        for d in data:
-            f.write(str(d))
-            f.write("\n")
-        f.close()
-
     def load_data(self, filename):
         f = open(filename, 'r')
         data = list()
         for line in f.readlines():
-            row = line.replace('\n', '').replace("[", "").replace("]", "").split(",")
+            row = line.replace('\n', '').replace("(", "").replace(")", "").split(",")
             row = [float(x) for x in row]
             data.append(row)
         f.close()
         return data
 
-    def collect_data(self):
-        self.serial = serial.Serial('COM5', 9600)
-        print("收集训练数据")
-        for pose in self.labels:
-            input("Action %s,按回车开始" % pose)
-            serial_data = list()
-            for num in range(10000):
-                self.collect_signal(serial_data)
-            self.save_data(pose, serial_data)
-
 
 if __name__ == "__main__":
-    pose_data = ["left", "rest", "open"]
+    pose_data = ["left", "right", "rest", "open"]
     model = EmgModel(pose_data)
-    # model.collect_data()
     model.predict()
