@@ -3,7 +3,7 @@ import sys
 
 class Knn:
     def __init__(self, k=5):
-        self.k = 5
+        self.k = k
         self.train_data = None
         self.train_target = None
 
